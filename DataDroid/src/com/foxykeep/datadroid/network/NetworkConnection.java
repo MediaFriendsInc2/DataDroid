@@ -13,6 +13,8 @@ import android.content.Context;
 import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.internal.network.NetworkConnectionImpl;
 import com.foxykeep.datadroid.util.DataDroidLog;
+import java.io.InputStream;
+import java.util.ArrayList;
 
 import org.apache.http.auth.UsernamePasswordCredentials;
 
@@ -51,11 +53,19 @@ public final class NetworkConnection {
         }
     }
 
+    public static final class MultipartFormData {
+        public String controlName;
+        public String contentType;
+        public String fileName;
+        public InputStream inputStream;
+    }
+
     private final Context mContext;
     private final String mUrl;
     private Method mMethod = Method.GET;
     private HashMap<String, String> mParameterMap = null;
     private HashMap<String, String> mHeaderMap = null;
+    private ArrayList<MultipartFormData> mFileList = null;
     private boolean mIsGzipEnabled = true;
     private String mUserAgent = null;
     private String mPostText = null;
@@ -120,6 +130,17 @@ public final class NetworkConnection {
      */
     public NetworkConnection setHeaderList(HashMap<String, String> headerMap) {
         mHeaderMap = headerMap;
+        return this;
+    }
+
+    /**
+     * Set the files to add to the request.
+     *
+     * @param headerMap The files to add to the request.
+     * @return The networkConnection.
+     */
+    public NetworkConnection setFileList(ArrayList<MultipartFormData> fileList) {
+        mFileList = fileList;
         return this;
     }
 
@@ -193,7 +214,7 @@ public final class NetworkConnection {
      */
     public ConnectionResult execute() throws ConnectionException {
         return NetworkConnectionImpl.execute(mContext, mUrl, mMethod, mParameterMap,
-                mHeaderMap, mIsGzipEnabled, mUserAgent, mPostText, mCredentials,
+                mHeaderMap, mFileList, mIsGzipEnabled, mUserAgent, mPostText, mCredentials,
                 mIsSslValidationEnabled);
     }
 }

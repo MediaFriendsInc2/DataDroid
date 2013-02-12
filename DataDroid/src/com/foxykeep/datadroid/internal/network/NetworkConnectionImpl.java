@@ -15,6 +15,7 @@ import android.util.Log;
 import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
 import com.foxykeep.datadroid.network.NetworkConnection.Method;
+import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
 import com.foxykeep.datadroid.network.UserAgentUtils;
 import com.foxykeep.datadroid.util.DataDroidLog;
 
@@ -26,12 +27,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
@@ -91,9 +95,14 @@ public final class NetworkConnectionImpl {
      */
     public static ConnectionResult execute(Context context, String urlValue, Method method,
             HashMap<String, String> parameterMap, HashMap<String, String> headerMap,
-            boolean isGzipEnabled, String userAgent, String postText,
-            UsernamePasswordCredentials credentials, boolean isSslValidationEnabled) throws
-            ConnectionException {
+            ArrayList<MultipartFormData> fileList, boolean isGzipEnabled, String userAgent,
+            String postText, UsernamePasswordCredentials credentials, boolean isSslValidationEnabled)
+            throws ConnectionException {
+
+        String boundary = Long.toHexString(System.currentTimeMillis());
+        String CRLF = "\r\n";
+        String charset = "utf-8";
+
         HttpURLConnection connection = null;
         try {
             // Prepare the request information
@@ -158,15 +167,23 @@ public final class NetworkConnectionImpl {
                     connection = (HttpURLConnection) url.openConnection();
                     break;
                 case POST:
-                    url = new URL(urlValue);
-                    connection = (HttpURLConnection) url.openConnection();
-                    connection.setDoOutput(true);
+                    if (fileList != null && fileList.size() > 0) {
+                        url = new URL(urlValue);
+                        connection = (HttpURLConnection) url.openConnection();
+                        connection.setDoOutput(true);
+                        connection.setChunkedStreamingMode(0);
+                        headerMap.put(CONTENT_TYPE_HEADER,  "multipart/form-data; boundary=" + boundary);
+                    } else {
+                        url = new URL(urlValue);
+                        connection = (HttpURLConnection) url.openConnection();
+                        connection.setDoOutput(true);
 
-                    if (paramBuilder.length() > 0) {
-                        outputText = paramBuilder.toString();
-                        headerMap.put(CONTENT_TYPE_HEADER, "application/x-www-form-urlencoded");
-                    } else if (postText != null) {
-                        outputText = postText;
+                        if (paramBuilder.length() > 0) {
+                            outputText = paramBuilder.toString();
+                            headerMap.put(CONTENT_TYPE_HEADER, "application/x-www-form-urlencoded");
+                        } else if (postText != null) {
+                            outputText = postText;
+                        }
                     }
                     break;
             }
@@ -207,6 +224,54 @@ public final class NetworkConnectionImpl {
                             // Already catching the first IOException so nothing to do here.
                         }
                     }
+                }
+
+            } else if (fileList != null) {
+                PrintWriter writer = null;
+                OutputStream output = connection.getOutputStream();
+                writer = new PrintWriter(new OutputStreamWriter(output, charset), true); // true = autoFlush, important!
+
+                for (String key : parameterMap.keySet())
+                {
+                    writer.append("--" + boundary).append(CRLF);
+                    writer.append("Content-Disposition: form-data; name=\"" + key + "\"").append(CRLF);
+                    writer.append("Content-Type: text/plain; charset=" + charset).append(CRLF);
+                    writer.append(CRLF);
+                    writer.append(parameterMap.get(key));
+                    writer.append(CRLF).flush();
+                }
+
+                if (fileList.size() == 1) {
+                    MultipartFormData data = fileList.get(0);
+                    writer.append("--" + boundary).append(CRLF);
+                    writer.append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\""
+                            + data.fileName + "\"").append(CRLF);
+                    //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
+                    writer.append("Content-Type: " + data.contentType).append(CRLF);
+                    writer.append("Content-Transfer-Encoding: binary").append(CRLF);
+                    writer.append(CRLF).flush();
+
+                    byte[] buffer = new byte[1024];
+                    for (int length = 0; (length = data.inputStream.read(buffer)) > 0;)
+                    {
+                        output.write(buffer, 0, length);
+                    }
+                    output.flush(); // Important! Output cannot be closed. Close of writer will close output as well.
+
+                    if (data.inputStream != null)
+                    {
+                        data.inputStream.close();
+                    }
+
+                    writer.append(CRLF).flush(); // CRLF is important! It indicates end of binary boundary.
+
+                    // End of multipart/form-data.
+                    writer.append("--" + boundary + "--").append(CRLF);
+
+                    writer.close();
+
+                } else if (fileList.size() > 1) {
+                    throw new ConnectionException("Multiple files not supported yet.");
                 }
             }
 
