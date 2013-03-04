@@ -246,24 +246,49 @@ public final class NetworkConnectionImpl {
                     writer.append("--" + boundary).append(CRLF);
                     writer.append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\""
                             + data.fileName + "\"").append(CRLF);
-                    //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
-                    writer.append("Content-Type: " + data.contentType).append(CRLF);
-                    writer.append("Content-Transfer-Encoding: binary").append(CRLF);
-                    writer.append(CRLF).flush();
 
-                    byte[] buffer = new byte[1024];
-                    for (int length = 0; (length = data.inputStream.read(buffer)) > 0;)
-                    {
-                        output.write(buffer, 0, length);
+                    // for now, prefer the text entry over binary
+                    if (data.reader != null) {
+                        writer.append("Content-Type: " + data.contentType + "; charset=" + charset).append(CRLF);
+                        writer.append(CRLF).flush();
+
+                        BufferedReader reader = null;
+                        try {
+                            reader = new BufferedReader(data.reader);
+                            for (String line; (line = reader.readLine()) != null;) {
+                                if (DataDroidLog.canLog(Log.DEBUG)) {
+                                    DataDroidLog.d(TAG, "Multipart text: " + line);
+                                }
+                                writer.append(line).append(CRLF);
+                            }
+                        } finally {
+                            if (reader != null) {
+                                try {
+                                    reader.close();
+                                } catch (IOException logOrIgnore) {
+                                }
+                            }
+                        }
+                        writer.flush();
+                        
+                    } else if (data.inputStream != null) {
+                        //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
+                        writer.append("Content-Type: " + data.contentType).append(CRLF);
+                        writer.append("Content-Transfer-Encoding: binary").append(CRLF);
+                        writer.append(CRLF).flush();
+
+                        byte[] buffer = new byte[1024];
+                        for (int length = 0; (length = data.inputStream.read(buffer)) > 0;) {
+                            output.write(buffer, 0, length);
+                        }
+                        output.flush(); // Important! Output cannot be closed. Close of writer will close output as well.
+
+                        if (data.inputStream != null) {
+                            data.inputStream.close();
+                        }
+
+                        writer.append(CRLF).flush(); // CRLF is important! It indicates end of binary boundary.
                     }
-                    output.flush(); // Important! Output cannot be closed. Close of writer will close output as well.
-
-                    if (data.inputStream != null)
-                    {
-                        data.inputStream.close();
-                    }
-
-                    writer.append(CRLF).flush(); // CRLF is important! It indicates end of binary boundary.
 
                     // End of multipart/form-data.
                     writer.append("--" + boundary + "--").append(CRLF);

@@ -14,6 +14,7 @@ import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.internal.network.NetworkConnectionImpl;
 import com.foxykeep.datadroid.util.DataDroidLog;
 import java.io.InputStream;
+import java.io.Reader;
 import java.util.ArrayList;
 
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -58,6 +59,7 @@ public final class NetworkConnection {
         public String contentType;
         public String fileName;
         public InputStream inputStream;
+        public Reader reader;
     }
 
     private final Context mContext;
