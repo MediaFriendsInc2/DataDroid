@@ -8,10 +8,10 @@
 
 package com.foxykeep.datadroidpoc.data.requestmanager;
 
-import android.content.Context;
-
 import com.foxykeep.datadroid.requestmanager.RequestManager;
-import com.foxykeep.datadroidpoc.data.service.PoCService;
+import com.foxykeep.datadroidpoc.data.service.PoCRequestService;
+
+import android.content.Context;
 
 /**
  * This class is used as a proxy to call the Service. It provides easy-to-use methods to call the
@@ -34,6 +34,6 @@ public final class PoCRequestManager extends RequestManager {
     }
 
     private PoCRequestManager(Context context) {
-        super(context, PoCService.class);
+        super(context, PoCRequestService.class);
     }
 }

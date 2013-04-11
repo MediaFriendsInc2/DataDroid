@@ -1,37 +1,39 @@
 /**
- * 2012 Foxykeep (http://datadroid.foxykeep.com)
+ * 2013 Foxykeep (http://datadroid.foxykeep.com)
  * <p>
  * Licensed under the Beerware License : <br />
  * As long as you retain this notice you can do whatever you want with this stuff. If we meet some
  * day, and you think this stuff is worth it, you can buy me a beer in return
  */
-package com.foxykeep.datadroidpoc.ui.feature;
+package com.foxykeep.datadroidpoc.ui.requesttype;
 
 import com.foxykeep.datadroid.requestmanager.Request;
-import com.foxykeep.datadroid.requestmanager.RequestManager.RequestListener;
+import com.foxykeep.datadroid.requestmanager.RequestManager;
 import com.foxykeep.datadroidpoc.R;
 import com.foxykeep.datadroidpoc.data.requestmanager.PoCRequestFactory;
 import com.foxykeep.datadroidpoc.dialogs.ConnectionErrorDialogFragment;
-import com.foxykeep.datadroidpoc.dialogs.ConnectionErrorDialogFragment.ConnectionErrorDialogListener;
 import com.foxykeep.datadroidpoc.ui.DataDroidActivity;
 
 import android.os.Bundle;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.Window;
-import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 
-public final class AuthenticationActivity extends DataDroidActivity implements RequestListener,
-        OnClickListener, ConnectionErrorDialogListener {
+public final class RequestTypesActivity extends DataDroidActivity
+        implements RequestManager.RequestListener, View.OnClickListener,
+        ConnectionErrorDialogFragment.ConnectionErrorDialogListener {
 
+    private Spinner mSpinnerRequestTypes;
+    private EditText mETNumber;
     private TextView mTVResult;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
-        setContentView(R.layout.authentication);
+        setContentView(R.layout.request_types);
 
         bindViews();
     }
@@ -62,24 +64,21 @@ public final class AuthenticationActivity extends DataDroidActivity implements R
     }
 
     private void bindViews() {
-        ((Button) findViewById(R.id.b_load)).setOnClickListener(this);
-        ((Button) findViewById(R.id.b_load_with_authentication)).setOnClickListener(this);
+        mSpinnerRequestTypes = (Spinner) findViewById(R.id.sp_request_types);
+
+        mETNumber = (EditText) findViewById(R.id.et_number);
+
+        findViewById(R.id.b_load).setOnClickListener(this);
 
         mTVResult = (TextView) findViewById(R.id.tv_result);
     }
 
-    private void callAuthenticationWSWithout() {
-        mTVResult.setText("");
+    private void callComputeSquareWS() {
         setProgressBarIndeterminateVisibility(true);
-        Request request = PoCRequestFactory.authenticationRequest(false);
-        mRequestManager.execute(request, this);
-        mRequestList.add(request);
-    }
-
-    private void callAuthenticationWSWith() {
         mTVResult.setText("");
-        setProgressBarIndeterminateVisibility(true);
-        Request request = PoCRequestFactory.authenticationRequest(true);
+        int method = mSpinnerRequestTypes.getSelectedItemPosition();
+        int number = Integer.parseInt(mETNumber.getText().toString());
+        Request request = PoCRequestFactory.getComputeSquareRequest(method, number);
         mRequestManager.execute(request, this);
         mRequestList.add(request);
     }
@@ -88,10 +87,7 @@ public final class AuthenticationActivity extends DataDroidActivity implements R
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.b_load:
-                callAuthenticationWSWithout();
-                break;
-            case R.id.b_load_with_authentication:
-                callAuthenticationWSWith();
+                callComputeSquareWS();
                 break;
         }
     }
@@ -102,8 +98,9 @@ public final class AuthenticationActivity extends DataDroidActivity implements R
             setProgressBarIndeterminateVisibility(false);
             mRequestList.remove(request);
 
-            mTVResult.setText(resultData
-                    .getString(PoCRequestFactory.BUNDLE_EXTRA_AUTHENTICATION_RESULT));
+            String result = getString(R.string.request_types_tv_result_format,
+                    resultData.getInt(PoCRequestFactory.BUNDLE_EXTRA_SQUARE));
+            mTVResult.setText(result);
         }
     }
 
@@ -133,11 +130,11 @@ public final class AuthenticationActivity extends DataDroidActivity implements R
     }
 
     @Override
-    public void connectionErrorDialogCancel(Request request) {}
+    public void connectionErrorDialogCancel(Request request) {
+    }
 
     @Override
     public void connectionErrorDialogRetry(Request request) {
-        mRequestManager.execute(request, this);
-        mRequestList.add(request);
+        callComputeSquareWS();
     }
 }

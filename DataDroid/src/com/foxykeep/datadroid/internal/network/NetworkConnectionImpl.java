@@ -8,10 +8,6 @@
 
 package com.foxykeep.datadroid.internal.network;
 
-import android.content.Context;
-import android.support.util.Base64;
-import android.util.Log;
-
 import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
 import com.foxykeep.datadroid.network.NetworkConnection.Method;
@@ -19,8 +15,14 @@ import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
 import com.foxykeep.datadroid.network.UserAgentUtils;
 import com.foxykeep.datadroid.util.DataDroidLog;
 
+import android.content.Context;
+import android.support.util.Base64;
+import android.util.Log;
+
 import org.apache.http.HttpStatus;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,7 +41,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
-
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -60,7 +61,6 @@ public final class NetworkConnectionImpl {
     private static final String ACCEPT_CHARSET_HEADER = "Accept-Charset";
     private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
     private static final String AUTHORIZATION_HEADER = "Authorization";
-    private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String LOCATION_HEADER = "Location";
     private static final String USER_AGENT_HEADER = "User-Agent";
@@ -80,9 +80,9 @@ public final class NetworkConnectionImpl {
      *
      * @param context The context to use for this operation. Used to generate the user agent if
      *            needed.
-     * @param url The webservice URL.
+     * @param urlValue The webservice URL.
      * @param method The request method to use.
-     * @param parameterMap The parameters to add to the request.
+     * @param parameterList The parameters to add to the request.
      * @param headerMap The headers to add to the request.
      * @param isGzipEnabled Whether the request will use gzip compression if available on the
      *            server.
@@ -94,14 +94,13 @@ public final class NetworkConnectionImpl {
      * @return The result of the webservice call.
      */
     public static ConnectionResult execute(Context context, String urlValue, Method method,
-            HashMap<String, String> parameterMap, HashMap<String, String> headerMap,
-            ArrayList<MultipartFormData> fileList, boolean isGzipEnabled, String userAgent,
-            String postText, UsernamePasswordCredentials credentials, boolean isSslValidationEnabled)
-            throws ConnectionException {
-
+            ArrayList<BasicNameValuePair> parameterList, HashMap<String, String> headerMap,
+            boolean isGzipEnabled, String userAgent, String postText, ArrayList<MultipartFormData> fileList,
+            UsernamePasswordCredentials credentials, boolean isSslValidationEnabled) throws
+            ConnectionException {
         String boundary = Long.toHexString(System.currentTimeMillis());
         String CRLF = "\r\n";
-        String charset = "utf-8";
+        //String charset = "utf-8";
 
         HttpURLConnection connection = null;
         try {
@@ -112,7 +111,7 @@ public final class NetworkConnectionImpl {
             if (headerMap == null) {
                 headerMap = new HashMap<String, String>();
             }
-            headerMap.put(USER_AGENT_HEADER, userAgent);
+            headerMap.put(HTTP.USER_AGENT, userAgent);
             if (isGzipEnabled) {
                 headerMap.put(ACCEPT_ENCODING_HEADER, "gzip");
             }
@@ -122,9 +121,10 @@ public final class NetworkConnectionImpl {
             }
 
             StringBuilder paramBuilder = new StringBuilder();
-            if (parameterMap != null && !parameterMap.isEmpty()) {
-                for (Entry<String, String> parameter : parameterMap.entrySet()) {
-                    paramBuilder.append(URLEncoder.encode(parameter.getKey(), UTF8_CHARSET));
+            if (parameterList != null && !parameterList.isEmpty()) {
+                for (int i = 0, size = parameterList.size(); i < size; i++) {
+                    BasicNameValuePair parameter = parameterList.get(i);
+                    paramBuilder.append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET));
                     paramBuilder.append("=");
                     paramBuilder.append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET));
                     paramBuilder.append("&");
@@ -136,10 +136,11 @@ public final class NetworkConnectionImpl {
                 DataDroidLog.d(TAG, "Request url: " + urlValue);
                 DataDroidLog.d(TAG, "Method: " + method.toString());
 
-                if (parameterMap != null && !parameterMap.isEmpty()) {
+                if (parameterList != null && !parameterList.isEmpty()) {
                     DataDroidLog.d(TAG, "Parameters:");
-                    for (Entry<String, String> parameter : parameterMap.entrySet()) {
-                        String message = "- " + parameter.getKey() + " = " + parameter.getValue();
+                    for (int i = 0, size = parameterList.size(); i < size; i++) {
+                        BasicNameValuePair parameter = parameterList.get(i);
+                        String message = "- " + parameter.getName() + " = " + parameter.getValue();
                         DataDroidLog.d(TAG, message);
                     }
                 }
@@ -162,10 +163,14 @@ public final class NetworkConnectionImpl {
             switch (method) {
                 case GET:
                 case DELETE:
-                case PUT:
-                    url = new URL(urlValue + "?" + paramBuilder.toString());
+                    String fullUrlValue = urlValue;
+                    if (paramBuilder.length() > 0) {
+                        fullUrlValue += "?" + paramBuilder.toString();
+                    }
+                    url = new URL(fullUrlValue);
                     connection = (HttpURLConnection) url.openConnection();
                     break;
+                case PUT:
                 case POST:
                     if (fileList != null && fileList.size() > 0) {
                         url = new URL(urlValue);
@@ -181,6 +186,8 @@ public final class NetworkConnectionImpl {
                         if (paramBuilder.length() > 0) {
                             outputText = paramBuilder.toString();
                             headerMap.put(CONTENT_TYPE_HEADER, "application/x-www-form-urlencoded");
+                            headerMap.put(HTTP.CONTENT_LEN,
+                                String.valueOf(outputText.getBytes().length));
                         } else if (postText != null) {
                             outputText = postText;
                         }
@@ -210,8 +217,8 @@ public final class NetworkConnectionImpl {
             connection.setConnectTimeout(OPERATION_TIMEOUT);
             connection.setReadTimeout(OPERATION_TIMEOUT);
 
-            // Set the outputStream content for POST requests
-            if (method == Method.POST && outputText != null) {
+            // Set the outputStream content for POST and PUT requests
+            if ((method == Method.POST || method == Method.PUT) && outputText != null) {
                 OutputStream output = null;
                 try {
                     output = connection.getOutputStream();
@@ -229,16 +236,19 @@ public final class NetworkConnectionImpl {
             } else if (fileList != null) {
                 PrintWriter writer = null;
                 OutputStream output = connection.getOutputStream();
-                writer = new PrintWriter(new OutputStreamWriter(output, charset), true); // true = autoFlush, important!
+                writer = new PrintWriter(new OutputStreamWriter(output, UTF8_CHARSET), true); // true = autoFlush, important!
 
-                for (String key : parameterMap.keySet())
-                {
-                    writer.append("--" + boundary).append(CRLF);
-                    writer.append("Content-Disposition: form-data; name=\"" + key + "\"").append(CRLF);
-                    writer.append("Content-Type: text/plain; charset=" + charset).append(CRLF);
-                    writer.append(CRLF);
-                    writer.append(parameterMap.get(key));
-                    writer.append(CRLF).flush();
+                if (parameterList != null && !parameterList.isEmpty()) {
+                    for (int i = 0, size = parameterList.size(); i < size; i++) {
+                        BasicNameValuePair parameter = parameterList.get(i);
+                        writer.append("--" + boundary).append(CRLF);
+                        writer.append("Content-Disposition: form-data; name=\""
+                                + writer.append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET) + "\"").append(CRLF));
+                        writer.append("Content-Type: text/plain; charset=" + UTF8_CHARSET).append(CRLF);
+                        writer.append(CRLF);
+                        writer.append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET));
+                        writer.append(CRLF).flush();
+                    }
                 }
 
                 if (fileList.size() == 1) {
@@ -246,10 +256,14 @@ public final class NetworkConnectionImpl {
                     writer.append("--" + boundary).append(CRLF);
                     writer.append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\""
                             + data.fileName + "\"").append(CRLF);
+                    //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
+                    writer.append("Content-Type: " + data.contentType).append(CRLF);
+                    writer.append("Content-Transfer-Encoding: binary").append(CRLF);
+                    writer.append(CRLF).flush();
 
                     // for now, prefer the text entry over binary
                     if (data.reader != null) {
-                        writer.append("Content-Type: " + data.contentType + "; charset=" + charset).append(CRLF);
+                        writer.append("Content-Type: " + data.contentType + "; charset=" + UTF8_CHARSET).append(CRLF);
                         writer.append(CRLF).flush();
 
                         BufferedReader reader = null;
@@ -270,7 +284,7 @@ public final class NetworkConnectionImpl {
                             }
                         }
                         writer.flush();
-                        
+
                     } else if (data.inputStream != null) {
                         //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
                         writer.append("Content-Type: " + data.contentType).append(CRLF);
@@ -300,7 +314,7 @@ public final class NetworkConnectionImpl {
                 }
             }
 
-            String contentEncoding = connection.getHeaderField(CONTENT_ENCODING_HEADER);
+            String contentEncoding = connection.getHeaderField(HTTP.CONTENT_ENCODING);
 
             int responseCode = connection.getResponseCode();
             boolean isGzip = contentEncoding != null

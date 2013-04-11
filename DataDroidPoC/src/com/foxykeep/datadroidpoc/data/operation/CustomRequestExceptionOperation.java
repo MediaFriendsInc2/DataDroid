@@ -7,9 +7,6 @@
  */
 package com.foxykeep.datadroidpoc.data.operation;
 
-import android.content.Context;
-import android.os.Bundle;
-
 import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.exception.CustomRequestException;
 import com.foxykeep.datadroid.exception.DataException;
@@ -20,12 +17,14 @@ import com.foxykeep.datadroid.service.RequestService.Operation;
 import com.foxykeep.datadroidpoc.config.WSConfig;
 import com.foxykeep.datadroidpoc.data.exception.MyCustomRequestException;
 import com.foxykeep.datadroidpoc.data.factory.CityListJsonFactory;
-import com.foxykeep.datadroidpoc.data.service.PoCService;
+
+import android.content.Context;
+import android.os.Bundle;
 
 /**
  * Sample WS call throwing a {@link CustomRequestException}.
  * <p>
- * Check {@link PoCService#onCustomRequestException(Request, CustomRequestException)} to see how to
+ * Check {@link com.foxykeep.datadroidpoc.data.service.PoCRequestService#onCustomRequestException(Request, CustomRequestException)} to see how to
  * manage the thrown exception.
  */
 public class CustomRequestExceptionOperation implements Operation {
