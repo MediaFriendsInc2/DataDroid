@@ -241,25 +241,21 @@ public final class NetworkConnectionImpl {
                 if (parameterList != null && !parameterList.isEmpty()) {
                     for (int i = 0, size = parameterList.size(); i < size; i++) {
                         BasicNameValuePair parameter = parameterList.get(i);
-                        writer.append("--" + boundary).append(CRLF);
-                        writer.append("Content-Disposition: form-data; name=\""
-                                + writer.append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET) + "\"").append(CRLF));
-                        writer.append("Content-Type: text/plain; charset=" + UTF8_CHARSET).append(CRLF);
-                        writer.append(CRLF);
-                        writer.append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET));
-                        writer.append(CRLF).flush();
+                        writer.append("--" + boundary).append(CRLF).append("Content-Disposition: form-data; name=\"")
+                                .append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET)).append("\"").append(CRLF)
+                                .append("Content-Type: text/plain; charset=" + UTF8_CHARSET).append(CRLF).append(CRLF)
+                                .append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET)).append(CRLF).flush();
                     }
                 }
 
                 if (fileList.size() == 1) {
                     MultipartFormData data = fileList.get(0);
-                    writer.append("--" + boundary).append(CRLF);
-                    writer.append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\""
-                            + data.fileName + "\"").append(CRLF);
-                    //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
-                    writer.append("Content-Type: " + data.contentType).append(CRLF);
-                    writer.append("Content-Transfer-Encoding: binary").append(CRLF);
-                    writer.append(CRLF).flush();
+                    writer.append("--" + boundary).append(CRLF)
+                            .append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\"")
+                            .append(data.fileName).append("\"").append(CRLF)
+                            .append("Content-Type: " + data.contentType).append(CRLF)
+                            .append("Content-Transfer-Encoding: binary").append(CRLF)
+                            .append(CRLF).flush();
 
                     // for now, prefer the text entry over binary
                     if (data.reader != null) {
