@@ -89,6 +89,7 @@ public final class NetworkConnectionImpl {
      * @param userAgent The user agent to set in the request. If null, a default Android one will be
      *            created.
      * @param postText The POSTDATA text to add in the request.
+     * @param postText The files to upload in a multipart/form-data request.
      * @param credentials The credentials to use for authentication.
      * @param isSslValidationEnabled Whether the request will validate the SSL certificates.
      * @return The result of the webservice call.
@@ -98,10 +99,6 @@ public final class NetworkConnectionImpl {
             boolean isGzipEnabled, String userAgent, String postText, ArrayList<MultipartFormData> fileList,
             UsernamePasswordCredentials credentials, boolean isSslValidationEnabled) throws
             ConnectionException {
-        String boundary = Long.toHexString(System.currentTimeMillis());
-        String CRLF = "\r\n";
-        //String charset = "utf-8";
-
         HttpURLConnection connection = null;
         try {
             // Prepare the request information
@@ -160,6 +157,9 @@ public final class NetworkConnectionImpl {
             // Create the connection object
             URL url = null;
             String outputText = null;
+            final String boundary = Long.toHexString(System.currentTimeMillis());
+            final String CRLF = "\r\n";
+            final String charset = "utf-8";
             switch (method) {
                 case GET:
                 case DELETE:
@@ -172,22 +172,19 @@ public final class NetworkConnectionImpl {
                     break;
                 case PUT:
                 case POST:
+                    url = new URL(urlValue);
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.setDoOutput(true);
+
                     if (fileList != null && fileList.size() > 0) {
-                        url = new URL(urlValue);
-                        connection = (HttpURLConnection) url.openConnection();
-                        connection.setDoOutput(true);
                         connection.setChunkedStreamingMode(0);
                         headerMap.put(CONTENT_TYPE_HEADER,  "multipart/form-data; boundary=" + boundary);
                     } else {
-                        url = new URL(urlValue);
-                        connection = (HttpURLConnection) url.openConnection();
-                        connection.setDoOutput(true);
-
                         if (paramBuilder.length() > 0) {
                             outputText = paramBuilder.toString();
                             headerMap.put(CONTENT_TYPE_HEADER, "application/x-www-form-urlencoded");
                             headerMap.put(HTTP.CONTENT_LEN,
-                                String.valueOf(outputText.getBytes().length));
+                                    String.valueOf(outputText.getBytes().length));
                         } else if (postText != null) {
                             outputText = postText;
                         }
@@ -233,34 +230,31 @@ public final class NetworkConnectionImpl {
                     }
                 }
 
-            } else if (fileList != null) {
+            } else if (fileList != null) { // multipart/form-data
                 PrintWriter writer = null;
                 OutputStream output = connection.getOutputStream();
-                writer = new PrintWriter(new OutputStreamWriter(output, UTF8_CHARSET), true); // true = autoFlush, important!
+                writer = new PrintWriter(new OutputStreamWriter(output, charset), true); // true = autoFlush, important!
 
                 if (parameterList != null && !parameterList.isEmpty()) {
                     for (int i = 0, size = parameterList.size(); i < size; i++) {
                         BasicNameValuePair parameter = parameterList.get(i);
                         writer.append("--" + boundary).append(CRLF).append("Content-Disposition: form-data; name=\"")
-                                .append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET)).append("\"").append(CRLF)
-                                .append("Content-Type: text/plain; charset=" + UTF8_CHARSET).append(CRLF).append(CRLF)
-                                .append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET)).append(CRLF).flush();
+                                .append(parameter.getName()).append("\"").append(CRLF)
+                                .append("Content-Type: text/plain; charset=" + charset).append(CRLF).append(CRLF)
+                                .append(parameter.getValue()).append(CRLF).flush();
                     }
                 }
 
                 if (fileList.size() == 1) {
                     MultipartFormData data = fileList.get(0);
                     writer.append("--" + boundary).append(CRLF)
-                            .append("Content-Disposition: form-data; name=\""+ data.controlName + "\"; filename=\"")
-                            .append(data.fileName).append("\"").append(CRLF)
-                            .append("Content-Type: " + data.contentType).append(CRLF)
-                            .append("Content-Transfer-Encoding: binary").append(CRLF)
-                            .append(CRLF).flush();
+                            .append("Content-Disposition: form-data; name=\"").append(data.controlName)
+                            .append("\"; filename=\"").append(data.fileName).append("\"").append(CRLF);
 
-                    // for now, prefer the text entry over binary
+                    // Prefer text over binary, if both are supplied.
                     if (data.reader != null) {
-                        writer.append("Content-Type: " + data.contentType + "; charset=" + UTF8_CHARSET).append(CRLF);
-                        writer.append(CRLF).flush();
+                        writer.append("Content-Type: ").append(data.contentType).append("; charset=").append(charset)
+                                .append(CRLF).append(CRLF).flush();
 
                         BufferedReader reader = null;
                         try {
@@ -282,8 +276,7 @@ public final class NetworkConnectionImpl {
                         writer.flush();
 
                     } else if (data.inputStream != null) {
-                        //writer.append("Content-Type: " + URLConnection.guessContentTypeFromStream(data.inputStream)).append(CRLF);
-                        writer.append("Content-Type: " + data.contentType).append(CRLF);
+                        writer.append("Content-Type: ").append(data.contentType).append(CRLF);
                         writer.append("Content-Transfer-Encoding: binary").append(CRLF);
                         writer.append(CRLF).flush();
 
