@@ -62,6 +62,7 @@ public final class NetworkConnectionImpl {
     private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String CRLF = "\r\n";
     private static final String LOCATION_HEADER = "Location";
     private static final String USER_AGENT_HEADER = "User-Agent";
 
@@ -158,8 +159,6 @@ public final class NetworkConnectionImpl {
             URL url = null;
             String outputText = null;
             final String boundary = Long.toHexString(System.currentTimeMillis());
-            final String CRLF = "\r\n";
-            final String charset = "utf-8";
             switch (method) {
                 case GET:
                 case DELETE:
@@ -233,27 +232,38 @@ public final class NetworkConnectionImpl {
             } else if (fileList != null) { // multipart/form-data
                 PrintWriter writer = null;
                 OutputStream output = connection.getOutputStream();
-                writer = new PrintWriter(new OutputStreamWriter(output, charset), true); // true = autoFlush, important!
+                writer = new PrintWriter(new OutputStreamWriter(output, UTF8_CHARSET), true); // true = autoFlush, important!
 
                 if (parameterList != null && !parameterList.isEmpty()) {
                     for (int i = 0, size = parameterList.size(); i < size; i++) {
                         BasicNameValuePair parameter = parameterList.get(i);
-                        writer.append("--" + boundary).append(CRLF).append("Content-Disposition: form-data; name=\"")
+                        writer.append("--" + boundary).append(CRLF)
+                                .append("Content-Disposition: form-data; name=\"")
                                 .append(parameter.getName()).append("\"").append(CRLF)
-                                .append("Content-Type: text/plain; charset=" + charset).append(CRLF).append(CRLF)
+                                .append("Content-Type: text/plain; charset=" + UTF8_CHARSET).append(CRLF).append(CRLF)
                                 .append(parameter.getValue()).append(CRLF).flush();
                     }
                 }
 
+                String subBoundary;
                 if (fileList.size() == 1) {
-                    MultipartFormData data = fileList.get(0);
-                    writer.append("--" + boundary).append(CRLF)
+                    subBoundary = boundary;
+                } else {
+                    subBoundary = Long.toHexString(System.currentTimeMillis() + 3600);
+                    writer.append("--").append(boundary).append(CRLF)
+                            .append("Content-Disposition: form-data; name=\"files\"").append(CRLF)
+                            .append("Content-Type: multipart/mixed; boundary=").append(subBoundary).append(CRLF)
+                            .append(CRLF).flush();
+                }
+
+                for (MultipartFormData data : fileList) {
+                    writer.append("--" + subBoundary).append(CRLF)
                             .append("Content-Disposition: form-data; name=\"").append(data.controlName)
                             .append("\"; filename=\"").append(data.fileName).append("\"").append(CRLF);
 
                     // Prefer text over binary, if both are supplied.
                     if (data.reader != null) {
-                        writer.append("Content-Type: ").append(data.contentType).append("; charset=").append(charset)
+                        writer.append("Content-Type: ").append(data.contentType).append("; charset=").append(UTF8_CHARSET)
                                 .append(CRLF).append(CRLF).flush();
 
                         BufferedReader reader = null;
@@ -292,15 +302,16 @@ public final class NetworkConnectionImpl {
 
                         writer.append(CRLF).flush(); // CRLF is important! It indicates end of binary boundary.
                     }
-
-                    // End of multipart/form-data.
-                    writer.append("--" + boundary + "--").append(CRLF);
-
-                    writer.close();
-
-                } else if (fileList.size() > 1) {
-                    throw new ConnectionException("Multiple files not supported yet.");
                 }
+
+                // End of multipart/form-data.
+                writer.append("--" + subBoundary + "--").append(CRLF);
+                
+                if (fileList.size() > 1) {
+                    writer.append("--" + boundary + "--").append(CRLF);
+                }
+                
+                writer.close();
             }
 
             String contentEncoding = connection.getHeaderField(HTTP.CONTENT_ENCODING);
