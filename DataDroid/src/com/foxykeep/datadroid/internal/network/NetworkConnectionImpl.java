@@ -320,6 +320,7 @@ public final class NetworkConnectionImpl {
             boolean isGzip = contentEncoding != null
                     && contentEncoding.equalsIgnoreCase("gzip");
             DataDroidLog.d(TAG, "Response code: " + responseCode);
+            DataDroidLog.d(TAG, "Response message: " + connection.getResponseMessage());
 
             if (responseCode == HttpStatus.SC_MOVED_PERMANENTLY) {
                 String redirectionUrl = connection.getHeaderField(LOCATION_HEADER);
@@ -330,7 +331,7 @@ public final class NetworkConnectionImpl {
             InputStream errorStream = connection.getErrorStream();
             if (errorStream != null) {
                 String error = convertStreamToString(errorStream,  isGzip);
-                throw new ConnectionException(error, responseCode);
+                throw new ConnectionException(error, responseCode, connection.getResponseMessage());
             }
 
             String body = convertStreamToString(connection.getInputStream(),

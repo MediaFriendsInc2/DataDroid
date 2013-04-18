@@ -19,6 +19,7 @@ public final class ConnectionException extends Exception {
 
     private String mRedirectionUrl;
     private int mStatusCode = -1;
+    private String mStatusMessage;
 
     /**
      * Constructs a new {@link ConnectionException} that includes the current stack trace.
@@ -73,6 +74,19 @@ public final class ConnectionException extends Exception {
         mStatusCode = statusCode;
     }
 
+        /**
+     * Constructs a new {@link ConnectionException} that includes the current stack trace and the
+     * specified detail message and the error status code
+     *
+     * @param detailMessage The detail message for this exception.
+     * @param statusCode The HTTP status code
+     */
+    public ConnectionException(final String detailMessage, final int statusCode, final String statusMessage) {
+        super(detailMessage);
+        mStatusCode = statusCode;
+        mStatusMessage = statusMessage;
+    }
+
     /**
      * Constructs a new {@link ConnectionException} that includes the current stack trace and the
      * specified cause.
@@ -89,6 +103,10 @@ public final class ConnectionException extends Exception {
 
     public int getStatusCode() {
         return mStatusCode;
+    }
+
+    public String getStatusMessage() {
+        return mStatusMessage;
     }
 
 }
