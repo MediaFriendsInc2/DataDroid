@@ -8,22 +8,6 @@
 
 package com.foxykeep.datadroid.internal.network;
 
-import com.foxykeep.datadroid.exception.ConnectionException;
-import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
-import com.foxykeep.datadroid.network.NetworkConnection.Method;
-import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
-import com.foxykeep.datadroid.network.UserAgentUtils;
-import com.foxykeep.datadroid.util.DataDroidLog;
-
-import android.content.Context;
-import android.support.util.Base64;
-import android.util.Log;
-
-import org.apache.http.HttpStatus;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
+
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -48,6 +33,23 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
+import org.apache.http.HttpStatus;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
+
+import android.content.Context;
+import android.support.util.Base64;
+import android.util.Log;
+
+import com.foxykeep.datadroid.exception.ConnectionException;
+import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
+import com.foxykeep.datadroid.network.NetworkConnection.Method;
+import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
+import com.foxykeep.datadroid.network.UserAgentUtils;
+import com.foxykeep.datadroid.util.DataDroidLog;
+import com.squareup.okhttp.OkHttpClient;
 
 /**
  * Implementation of the network connection.
@@ -156,6 +158,7 @@ public final class NetworkConnectionImpl {
             }
 
             // Create the connection object
+            OkHttpClient client = new OkHttpClient();
             URL url = null;
             String outputText = null;
             final String boundary = Long.toHexString(System.currentTimeMillis());
@@ -167,12 +170,14 @@ public final class NetworkConnectionImpl {
                         fullUrlValue += "?" + paramBuilder.toString();
                     }
                     url = new URL(fullUrlValue);
-                    connection = (HttpURLConnection) url.openConnection();
+                    //connection = (HttpURLConnection) url.openConnection();
+                    connection = client.open(url);
                     break;
                 case PUT:
                 case POST:
                     url = new URL(urlValue);
-                    connection = (HttpURLConnection) url.openConnection();
+                    //connection = (HttpURLConnection) url.openConnection();
+                    connection = client.open(url);
                     connection.setDoOutput(true);
 
                     if (fileList != null && fileList.size() > 0) {
