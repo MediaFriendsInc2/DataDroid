@@ -18,6 +18,7 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.GeneralSecurityException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -159,6 +160,17 @@ public final class NetworkConnectionImpl {
 
             // Create the connection object
             OkHttpClient client = new OkHttpClient();
+            // TODO: Remove this workaround for this bug: https://github.com/square/okhttp/issues/184#issuecomment-18772733
+            OkHttpClient okHttpClient = new OkHttpClient();
+            SSLContext sslContext;
+            try {
+              sslContext = SSLContext.getInstance("TLS");
+              sslContext.init(null, null, null);
+            } catch (GeneralSecurityException e) {
+              throw new AssertionError(); // The system has no TLS. Just give up.
+            }
+            okHttpClient.setSslSocketFactory(sslContext.getSocketFactory());
+            
             URL url = null;
             String outputText = null;
             final String boundary = Long.toHexString(System.currentTimeMillis());
