@@ -5,10 +5,10 @@
  * As long as you retain this notice you can do whatever you want with this stuff. If we meet some
  * day, and you think this stuff is worth it, you can buy me a beer in return
  */
-
 package com.foxykeep.datadroid.internal.network;
 
 import com.foxykeep.datadroid.exception.ConnectionException;
+import com.foxykeep.datadroid.network.HttpUrlConnectionHelper;
 import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
 import com.foxykeep.datadroid.network.NetworkConnection.Method;
 import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
@@ -17,6 +17,7 @@ import com.foxykeep.datadroid.util.DataDroidLog;
 
 import android.content.Context;
 import android.support.util.Base64;
+import android.text.TextUtils;
 import android.util.Log;
 
 import org.apache.http.HttpStatus;
@@ -122,9 +123,18 @@ public final class NetworkConnectionImpl {
             if (parameterList != null && !parameterList.isEmpty()) {
                 for (int i = 0, size = parameterList.size(); i < size; i++) {
                     BasicNameValuePair parameter = parameterList.get(i);
-                    paramBuilder.append(URLEncoder.encode(parameter.getName(), UTF8_CHARSET));
+                    String name = parameter.getName();
+                    String value = parameter.getValue();
+                    if (TextUtils.isEmpty(name)) {
+                        // Empty parameter name. Check the next one.
+                        continue;
+                    }
+                    if (value == null) {
+                        value = "";
+                    }
+                    paramBuilder.append(URLEncoder.encode(name, UTF8_CHARSET));
                     paramBuilder.append("=");
-                    paramBuilder.append(URLEncoder.encode(parameter.getValue(), UTF8_CHARSET));
+                    paramBuilder.append(URLEncoder.encode(value, UTF8_CHARSET));
                     paramBuilder.append("&");
                 }
             }
@@ -138,13 +148,16 @@ public final class NetworkConnectionImpl {
                     DataDroidLog.d(TAG, "Parameters:");
                     for (int i = 0, size = parameterList.size(); i < size; i++) {
                         BasicNameValuePair parameter = parameterList.get(i);
-                        String message = "- " + parameter.getName() + " = " + parameter.getValue();
+                        String message = "- \"" + parameter.getName() + "\" = \""
+                                + parameter.getValue() + "\"";
                         DataDroidLog.d(TAG, message);
                     }
+
+                    DataDroidLog.d(TAG, "Parameters String: \"" + paramBuilder.toString() + "\"");
                 }
 
                 if (postText != null) {
-                    DataDroidLog.d(TAG, "Post body: " + postText);
+                    DataDroidLog.d(TAG, "Post data: " + postText);
                 }
 
                 if (headerMap != null && !headerMap.isEmpty()) {
@@ -167,12 +180,12 @@ public final class NetworkConnectionImpl {
                         fullUrlValue += "?" + paramBuilder.toString();
                     }
                     url = new URL(fullUrlValue);
-                    connection = (HttpURLConnection) url.openConnection();
+                    connection = HttpUrlConnectionHelper.openUrlConnection(url);
                     break;
                 case PUT:
                 case POST:
                     url = new URL(urlValue);
-                    connection = (HttpURLConnection) url.openConnection();
+                    connection = HttpUrlConnectionHelper.openUrlConnection(url);
                     connection.setDoOutput(true);
 
                     if (fileList != null && fileList.size() > 0) {
