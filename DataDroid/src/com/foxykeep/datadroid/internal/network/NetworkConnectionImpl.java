@@ -71,7 +71,7 @@ public final class NetworkConnectionImpl {
     private static final String UTF8_CHARSET = "UTF-8";
 
     // Default connection and socket timeout of 60 seconds. Tweak to taste.
-    private static final int OPERATION_TIMEOUT = 30 * 1000;
+    private static final int OPERATION_TIMEOUT = 15 * 1000;
 
     private NetworkConnectionImpl() {
         // No public constructor
