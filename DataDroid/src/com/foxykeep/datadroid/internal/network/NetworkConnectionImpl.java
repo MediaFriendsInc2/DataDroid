@@ -7,6 +7,11 @@
  */
 package com.foxykeep.datadroid.internal.network;
 
+import android.content.Context;
+import android.support.util.Base64;
+import android.text.TextUtils;
+import android.util.Log;
+
 import com.foxykeep.datadroid.exception.ConnectionException;
 import com.foxykeep.datadroid.network.HttpUrlConnectionHelper;
 import com.foxykeep.datadroid.network.NetworkConnection.ConnectionResult;
@@ -14,11 +19,6 @@ import com.foxykeep.datadroid.network.NetworkConnection.Method;
 import com.foxykeep.datadroid.network.NetworkConnection.MultipartFormData;
 import com.foxykeep.datadroid.network.UserAgentUtils;
 import com.foxykeep.datadroid.util.DataDroidLog;
-
-import android.content.Context;
-import android.support.util.Base64;
-import android.text.TextUtils;
-import android.util.Log;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.zip.GZIPInputStream;
+
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -70,7 +71,7 @@ public final class NetworkConnectionImpl {
     private static final String UTF8_CHARSET = "UTF-8";
 
     // Default connection and socket timeout of 60 seconds. Tweak to taste.
-    private static final int OPERATION_TIMEOUT = 60 * 1000;
+    private static final int OPERATION_TIMEOUT = 30 * 1000;
 
     private NetworkConnectionImpl() {
         // No public constructor
