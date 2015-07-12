@@ -1,3 +1,9 @@
+repositories {
+    jcenter()
+    flatDir {
+        dirs 'libs'
+    }
+}
 apply plugin: 'android-library'
 
 dependencies {
@@ -31,4 +37,8 @@ android {
         debug.setRoot('build-types/debug')
         release.setRoot('build-types/release')
     }
+}
+
+dependencies {
+    compile 'com.squareup.okhttp:okhttp:2.4.0'
 }
